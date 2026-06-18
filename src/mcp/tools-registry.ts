@@ -858,7 +858,12 @@ export const V010_SLOTS_TOOLS: McpToolDef[] = [
     name: "memory_slot_list",
     description:
       "List all memory slots (pinned + project + global). Slots are editable, size-limited memory units the agent can read and modify across sessions.",
-    inputSchema: { type: "object", properties: {} },
+    inputSchema: {
+      type: "object",
+      properties: {
+        project: { type: "string", description: "Stable project slug whose project-scoped slots should be resolved" },
+      },
+    },
   },
   {
     name: "memory_slot_get",
@@ -867,6 +872,7 @@ export const V010_SLOTS_TOOLS: McpToolDef[] = [
       type: "object",
       properties: {
         label: { type: "string", description: "Slot label (e.g. 'persona', 'pending_items')" },
+        project: { type: "string", description: "Stable project slug for project-scoped slot resolution" },
       },
       required: ["label"],
     },
@@ -883,6 +889,7 @@ export const V010_SLOTS_TOOLS: McpToolDef[] = [
         description: { type: "string", description: "What this slot is for" },
         pinned: { type: "string", description: "'false' to exclude from context injection; default true" },
         scope: { type: "string", description: "'project' (default) or 'global' (shared across projects)" },
+        project: { type: "string", description: "Required when scope='project'. Stable project slug that owns this slot." },
       },
       required: ["label"],
     },
@@ -896,6 +903,7 @@ export const V010_SLOTS_TOOLS: McpToolDef[] = [
       properties: {
         label: { type: "string", description: "Slot label" },
         text: { type: "string", description: "Text to append" },
+        project: { type: "string", description: "Stable project slug for project-scoped slot resolution" },
       },
       required: ["label", "text"],
     },
@@ -908,6 +916,7 @@ export const V010_SLOTS_TOOLS: McpToolDef[] = [
       properties: {
         label: { type: "string", description: "Slot label" },
         content: { type: "string", description: "New full content" },
+        project: { type: "string", description: "Stable project slug for project-scoped slot resolution" },
       },
       required: ["label", "content"],
     },
@@ -919,6 +928,7 @@ export const V010_SLOTS_TOOLS: McpToolDef[] = [
       type: "object",
       properties: {
         label: { type: "string", description: "Slot label" },
+        project: { type: "string", description: "Stable project slug for project-scoped slot resolution" },
       },
       required: ["label"],
     },

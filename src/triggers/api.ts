@@ -2043,7 +2043,11 @@ export function registerApiTriggers(
     const authErr = checkAuth(req, secret);
     if (authErr) return authErr;
     if (!isSlotsEnabled()) return slotsDisabledResponse();
-    const result = await sdk.trigger({ function_id: "mem::slot-list", payload: {} });
+    const project = asNonEmptyString(req.query_params?.["project"]);
+    const result = await sdk.trigger({
+      function_id: "mem::slot-list",
+      payload: project ? { project } : {},
+    });
     return { status_code: 200, body: result };
   });
   sdk.registerTrigger({
@@ -2057,8 +2061,12 @@ export function registerApiTriggers(
     if (authErr) return authErr;
     if (!isSlotsEnabled()) return slotsDisabledResponse();
     const label = asNonEmptyString(req.query_params?.["label"]);
+    const project = asNonEmptyString(req.query_params?.["project"]);
     if (!label) return { status_code: 400, body: { error: "label query param required" } };
-    const result = await sdk.trigger({ function_id: "mem::slot-get", payload: { label } });
+    const result = await sdk.trigger({
+      function_id: "mem::slot-get",
+      payload: project ? { label, project } : { label },
+    });
     const resp = result as { success?: boolean; error?: string };
     if (resp?.success === false) {
       return { status_code: resp.error?.includes("not found") ? 404 : 400, body: resp };
@@ -2095,6 +2103,10 @@ export function registerApiTriggers(
     ) {
       return { status_code: 400, body: { error: "scope must be 'project' or 'global'" } };
     }
+    const project = asNonEmptyString(body["project"]);
+    if (body["project"] !== undefined && !project) {
+      return { status_code: 400, body: { error: "project must be a non-empty string" } };
+    }
     const sizeLimit = parseOptionalPositiveInt(body["sizeLimit"]);
     if (sizeLimit === null) {
       return { status_code: 400, body: { error: "sizeLimit must be a positive integer" } };
@@ -2108,6 +2120,7 @@ export function registerApiTriggers(
     if (sizeLimit !== undefined) payload["sizeLimit"] = sizeLimit;
     if (typeof body["pinned"] === "boolean") payload["pinned"] = body["pinned"];
     if (body["scope"] === "project" || body["scope"] === "global") payload["scope"] = body["scope"];
+    if (project) payload["project"] = project;
     const result = await sdk.trigger({ function_id: "mem::slot-create", payload });
     const resp = result as { success?: boolean; error?: string };
     if (resp?.success === false) {
@@ -2128,8 +2141,15 @@ export function registerApiTriggers(
     const body = (req.body ?? {}) as Record<string, unknown>;
     const label = asNonEmptyString(body["label"]);
     const text = typeof body["text"] === "string" ? body["text"] : null;
+    const project = asNonEmptyString(body["project"]);
+    if (body["project"] !== undefined && !project) {
+      return { status_code: 400, body: { error: "project must be a non-empty string" } };
+    }
     if (!label || !text) return { status_code: 400, body: { error: "label and text required" } };
-    const result = await sdk.trigger({ function_id: "mem::slot-append", payload: { label, text } });
+    const result = await sdk.trigger({
+      function_id: "mem::slot-append",
+      payload: project ? { label, text, project } : { label, text },
+    });
     const resp = result as { success?: boolean; error?: string };
     if (resp?.success === false) {
       const notFound = resp.error?.includes("not found");
@@ -2151,10 +2171,17 @@ export function registerApiTriggers(
     const body = (req.body ?? {}) as Record<string, unknown>;
     const label = asNonEmptyString(body["label"]);
     const content = body["content"];
+    const project = asNonEmptyString(body["project"]);
+    if (body["project"] !== undefined && !project) {
+      return { status_code: 400, body: { error: "project must be a non-empty string" } };
+    }
     if (!label || typeof content !== "string") {
       return { status_code: 400, body: { error: "label and content (string) required" } };
     }
-    const result = await sdk.trigger({ function_id: "mem::slot-replace", payload: { label, content } });
+    const result = await sdk.trigger({
+      function_id: "mem::slot-replace",
+      payload: project ? { label, content, project } : { label, content },
+    });
     const resp = result as { success?: boolean; error?: string };
     if (resp?.success === false) {
       const notFound = resp.error?.includes("not found");
@@ -2174,8 +2201,12 @@ export function registerApiTriggers(
     if (authErr) return authErr;
     if (!isSlotsEnabled()) return slotsDisabledResponse();
     const label = asNonEmptyString(req.query_params?.["label"]);
+    const project = asNonEmptyString(req.query_params?.["project"]);
     if (!label) return { status_code: 400, body: { error: "label query param required" } };
-    const result = await sdk.trigger({ function_id: "mem::slot-delete", payload: { label } });
+    const result = await sdk.trigger({
+      function_id: "mem::slot-delete",
+      payload: project ? { label, project } : { label },
+    });
     const resp = result as { success?: boolean; error?: string };
     if (resp?.success === false) {
       return { status_code: resp.error?.includes("not found") ? 404 : 400, body: resp };

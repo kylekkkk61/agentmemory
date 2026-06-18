@@ -37,9 +37,9 @@ function wire() {
 
 async function waitForSeed(kv: ReturnType<typeof mockKV>) {
   for (let i = 0; i < 20; i++) {
-    const p = await kv.list(KV.slots);
+    const p = await kv.list(KV.projectSlots("proj-a"));
     const g = await kv.list(KV.globalSlots);
-    if (p.length + g.length >= DEFAULT_SLOTS.length) return;
+    if (g.length >= 3) return;
     await new Promise((r) => setTimeout(r, 5));
   }
 }
@@ -55,11 +55,10 @@ describe("slots — primitive", () => {
 
   it("seeds default slots into the right scopes on first run", async () => {
     const global = (await kv.list(KV.globalSlots)) as Array<{ label: string }>;
-    const project = (await kv.list(KV.slots)) as Array<{ label: string }>;
     expect(global.map((s) => s.label).sort()).toEqual(
       ["persona", "tool_guidelines", "user_preferences"].sort(),
     );
-    expect(project.map((s) => s.label).sort().length).toBeGreaterThanOrEqual(5);
+    expect(await kv.list(KV.projectSlots("proj-a"))).toHaveLength(0);
   });
 
   it("rejects labels with bad shape", async () => {
@@ -73,11 +72,12 @@ describe("slots — primitive", () => {
       label: "notes_todo",
       content: "hello",
       description: "scratchpad",
+      project: "proj-a",
     })) as { success: boolean; slot: { label: string; content: string } };
     expect(created.success).toBe(true);
     expect(created.slot.content).toBe("hello");
 
-    const fetched = (await handlers["mem::slot-get"]({ label: "notes_todo" })) as {
+    const fetched = (await handlers["mem::slot-get"]({ label: "notes_todo", project: "proj-a" })) as {
       success: boolean;
       slot: { content: string };
     };
@@ -86,8 +86,8 @@ describe("slots — primitive", () => {
   });
 
   it("rejects duplicate create", async () => {
-    await handlers["mem::slot-create"]({ label: "scratch", content: "a" });
-    const dup = (await handlers["mem::slot-create"]({ label: "scratch", content: "b" })) as {
+    await handlers["mem::slot-create"]({ label: "scratch", content: "a", project: "proj-a" });
+    const dup = (await handlers["mem::slot-create"]({ label: "scratch", content: "b", project: "proj-a" })) as {
       success: boolean;
       error: string;
     };
@@ -95,11 +95,26 @@ describe("slots — primitive", () => {
     expect(dup.error).toMatch(/already exists/);
   });
 
+  it("allows the same label in different projects", async () => {
+    const a = (await handlers["mem::slot-create"]({
+      label: "scratch",
+      content: "a",
+      project: "proj-a",
+    })) as { success: boolean };
+    const b = (await handlers["mem::slot-create"]({
+      label: "scratch",
+      content: "b",
+      project: "proj-b",
+    })) as { success: boolean };
+    expect(a.success).toBe(true);
+    expect(b.success).toBe(true);
+  });
+
   it("append refuses writes that would blow the sizeLimit", async () => {
-    await handlers["mem::slot-create"]({ label: "tight", content: "", sizeLimit: 10 });
-    const ok = (await handlers["mem::slot-append"]({ label: "tight", text: "short" })) as { success: boolean };
+    await handlers["mem::slot-create"]({ label: "tight", content: "", sizeLimit: 10, project: "proj-a" });
+    const ok = (await handlers["mem::slot-append"]({ label: "tight", text: "short", project: "proj-a" })) as { success: boolean };
     expect(ok.success).toBe(true);
-    const tooBig = (await handlers["mem::slot-append"]({ label: "tight", text: "way too long for this slot" })) as {
+    const tooBig = (await handlers["mem::slot-append"]({ label: "tight", text: "way too long for this slot", project: "proj-a" })) as {
       success: boolean;
       error: string;
     };
@@ -108,8 +123,8 @@ describe("slots — primitive", () => {
   });
 
   it("replace refuses content above sizeLimit", async () => {
-    await handlers["mem::slot-create"]({ label: "tiny", content: "", sizeLimit: 5 });
-    const res = (await handlers["mem::slot-replace"]({ label: "tiny", content: "exceeds" })) as {
+    await handlers["mem::slot-create"]({ label: "tiny", content: "", sizeLimit: 5, project: "proj-a" });
+    const res = (await handlers["mem::slot-replace"]({ label: "tiny", content: "exceeds", project: "proj-a" })) as {
       success: boolean;
       error: string;
     };
@@ -118,10 +133,10 @@ describe("slots — primitive", () => {
   });
 
   it("delete removes the slot", async () => {
-    await handlers["mem::slot-create"]({ label: "throwaway", content: "bye" });
-    const del = (await handlers["mem::slot-delete"]({ label: "throwaway" })) as { success: boolean };
+    await handlers["mem::slot-create"]({ label: "throwaway", content: "bye", project: "proj-a" });
+    const del = (await handlers["mem::slot-delete"]({ label: "throwaway", project: "proj-a" })) as { success: boolean };
     expect(del.success).toBe(true);
-    const get = (await handlers["mem::slot-get"]({ label: "throwaway" })) as { success: boolean };
+    const get = (await handlers["mem::slot-get"]({ label: "throwaway", project: "proj-a" })) as { success: boolean };
     expect(get.success).toBe(false);
   });
 
@@ -135,10 +150,11 @@ describe("slots — primitive", () => {
       label: "persona",
       content: "project-override",
       scope: "project",
+      project: "proj-a",
     })) as { success: boolean };
     expect(createRes.success).toBe(true);
 
-    const res = (await handlers["mem::slot-get"]({ label: "persona" })) as {
+    const res = (await handlers["mem::slot-get"]({ label: "persona", project: "proj-a" })) as {
       slot: { content: string };
       scope: string;
     };
@@ -146,10 +162,35 @@ describe("slots — primitive", () => {
     expect(res.scope).toBe("project");
   });
 
+  it("project slot does not leak into another project", async () => {
+    await handlers["mem::slot-create"]({
+      label: "guidance",
+      content: "only proj-a",
+      scope: "project",
+      project: "proj-a",
+    });
+    const res = (await handlers["mem::slot-get"]({
+      label: "guidance",
+      project: "proj-b",
+    })) as { success: boolean; slot?: { content: string } };
+    expect(res.success).toBe(true);
+    expect(res.slot?.content).not.toContain("only proj-a");
+  });
+
+  it("requires project when creating a project-scoped slot", async () => {
+    const res = (await handlers["mem::slot-create"]({
+      label: "needs_project",
+      scope: "project",
+    })) as { success: boolean; error: string };
+    expect(res.success).toBe(false);
+    expect(res.error).toMatch(/project required/);
+  });
+
   it("rejects invalid sizeLimit instead of silently defaulting", async () => {
     const tooBig = (await handlers["mem::slot-create"]({
       label: "oversize",
       sizeLimit: 99999,
+      project: "proj-a",
     })) as { success: boolean; error: string };
     expect(tooBig.success).toBe(false);
     expect(tooBig.error).toMatch(/sizeLimit must be/);
@@ -157,12 +198,14 @@ describe("slots — primitive", () => {
     const negative = (await handlers["mem::slot-create"]({
       label: "negative",
       sizeLimit: -1,
+      project: "proj-a",
     })) as { success: boolean; error: string };
     expect(negative.success).toBe(false);
 
     const nonInteger = (await handlers["mem::slot-create"]({
       label: "fractional",
       sizeLimit: 1.5,
+      project: "proj-a",
     })) as { success: boolean; error: string };
     expect(nonInteger.success).toBe(false);
   });
@@ -178,14 +221,14 @@ describe("slots — primitive", () => {
 
   it("listPinnedSlots returns only pinned slots with content", async () => {
     await handlers["mem::slot-append"]({ label: "persona", text: "helpful senior engineer" });
-    const pinned = await listPinnedSlots(kv as never);
+    const pinned = await listPinnedSlots(kv as never, "proj-a");
     expect(pinned.some((s) => s.label === "persona")).toBe(true);
     expect(pinned.every((s) => s.pinned && s.content.trim().length > 0)).toBe(true);
   });
 
   it("renderPinnedContext serialises slots into markdown", async () => {
     await handlers["mem::slot-append"]({ label: "persona", text: "senior eng" });
-    const pinned = await listPinnedSlots(kv as never);
+    const pinned = await listPinnedSlots(kv as never, "proj-a");
     const rendered = renderPinnedContext(pinned);
     expect(rendered).toContain("## persona");
     expect(rendered).toContain("senior eng");
@@ -235,6 +278,14 @@ describe("slots — reflect", () => {
       files: ["src/other.ts"],
       type: "error",
     });
+    await kv.set(KV.sessions, sessionId, {
+      id: sessionId,
+      project: "proj-a",
+      cwd: "/tmp/proj-a",
+      startedAt: new Date().toISOString(),
+      status: "active",
+      observationCount: 2,
+    });
     const res = (await handlers["mem::slot-reflect"]({ sessionId })) as {
       success: boolean;
       applied: number;
@@ -244,12 +295,12 @@ describe("slots — reflect", () => {
     expect(res.observationsReviewed).toBe(2);
     expect(res.applied).toBeGreaterThan(0);
 
-    const pending = (await handlers["mem::slot-get"]({ label: "pending_items" })) as {
+    const pending = (await handlers["mem::slot-get"]({ label: "pending_items", project: "proj-a" })) as {
       slot: { content: string };
     };
     expect(pending.slot.content).toContain("TODO: wire up retries");
 
-    const patterns = (await handlers["mem::slot-get"]({ label: "session_patterns" })) as {
+    const patterns = (await handlers["mem::slot-get"]({ label: "session_patterns", project: "proj-a" })) as {
       slot: { content: string };
     };
     expect(patterns.slot.content).toMatch(/errors: 2/);

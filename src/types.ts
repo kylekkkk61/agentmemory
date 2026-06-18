@@ -231,6 +231,7 @@ export interface MemorySlot {
   pinned: boolean;
   readOnly: boolean;
   scope: "project" | "global";
+  project?: string;
   createdAt: string;
   updatedAt: string;
 }

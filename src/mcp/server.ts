@@ -1151,7 +1151,11 @@ export function registerMcpEndpoints(
           }
 
           case "memory_slot_list": {
-            const result = await sdk.trigger({ function_id: "mem::slot-list", payload: {} });
+            const project = asNonEmptyString(args.project);
+            const result = await sdk.trigger({
+              function_id: "mem::slot-list",
+              payload: project ? { project } : {},
+            });
             return {
               status_code: 200,
               body: { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] },
@@ -1161,7 +1165,11 @@ export function registerMcpEndpoints(
           case "memory_slot_get": {
             const label = asNonEmptyString(args.label);
             if (!label) return { status_code: 400, body: { error: "label required" } };
-            const result = await sdk.trigger({ function_id: "mem::slot-get", payload: { label } });
+            const project = asNonEmptyString(args.project);
+            const result = await sdk.trigger({
+              function_id: "mem::slot-get",
+              payload: project ? { label, project } : { label },
+            });
             return {
               status_code: 200,
               body: { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] },
@@ -1180,6 +1188,7 @@ export function registerMcpEndpoints(
             if (args.pinned === false || args.pinned === "false") payload.pinned = false;
             else if (args.pinned === true || args.pinned === "true") payload.pinned = true;
             if (args.scope === "global" || args.scope === "project") payload.scope = args.scope;
+            if (typeof args.project === "string" && args.project.trim()) payload.project = args.project.trim();
             const result = await sdk.trigger({ function_id: "mem::slot-create", payload });
             return {
               status_code: 200,
@@ -1191,7 +1200,11 @@ export function registerMcpEndpoints(
             const label = asNonEmptyString(args.label);
             const text = typeof args.text === "string" ? args.text : null;
             if (!label || !text) return { status_code: 400, body: { error: "label and text required" } };
-            const result = await sdk.trigger({ function_id: "mem::slot-append", payload: { label, text } });
+            const project = asNonEmptyString(args.project);
+            const result = await sdk.trigger({
+              function_id: "mem::slot-append",
+              payload: project ? { label, text, project } : { label, text },
+            });
             return {
               status_code: 200,
               body: { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] },
@@ -1203,7 +1216,13 @@ export function registerMcpEndpoints(
             if (!label || typeof args.content !== "string") {
               return { status_code: 400, body: { error: "label and content (string) required" } };
             }
-            const result = await sdk.trigger({ function_id: "mem::slot-replace", payload: { label, content: args.content } });
+            const project = asNonEmptyString(args.project);
+            const result = await sdk.trigger({
+              function_id: "mem::slot-replace",
+              payload: project
+                ? { label, content: args.content, project }
+                : { label, content: args.content },
+            });
             return {
               status_code: 200,
               body: { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] },
@@ -1213,7 +1232,11 @@ export function registerMcpEndpoints(
           case "memory_slot_delete": {
             const label = asNonEmptyString(args.label);
             if (!label) return { status_code: 400, body: { error: "label required" } };
-            const result = await sdk.trigger({ function_id: "mem::slot-delete", payload: { label } });
+            const project = asNonEmptyString(args.project);
+            const result = await sdk.trigger({
+              function_id: "mem::slot-delete",
+              payload: project ? { label, project } : { label },
+            });
             return {
               status_code: 200,
               body: { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] },

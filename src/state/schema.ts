@@ -65,7 +65,10 @@ export const KV = {
   accessLog: "mem:access",
   imageRefs: "mem:image-refs",
   imageEmbeddings: "mem:image-embeddings",
+  // Legacy shared project-slot scope kept as a read fallback for rows
+  // written before project-isolated slot storage was introduced.
   slots: "mem:slots",
+  projectSlots: (project: string) => `mem:slots:project:${project}`,
   globalSlots: "mem:slots:global",
   state: "mem:state",
   commits: "mem:commits",

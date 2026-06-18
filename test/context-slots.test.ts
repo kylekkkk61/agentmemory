@@ -46,8 +46,10 @@ async function seedPinnedSlot(
   label: string,
   content: string,
   scope: "project" | "global" = "global",
+  project = "proj-a",
 ) {
-  const target = scope === "global" ? KV.globalSlots : KV.slots;
+  const target =
+    scope === "global" ? KV.globalSlots : KV.projectSlots(project);
   await kv.set(target, label, {
     label,
     content,
@@ -56,6 +58,7 @@ async function seedPinnedSlot(
     pinned: true,
     readOnly: false,
     scope,
+    ...(scope === "project" ? { project } : {}),
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
@@ -145,7 +148,7 @@ describe("mem::context — pinned slot injection", () => {
 
     it("project-scoped slot shadows global slot with the same label", async () => {
       await seedPinnedSlot(kv, "tool_guidelines", "global-value", "global");
-      await seedPinnedSlot(kv, "tool_guidelines", "project-value", "project");
+      await seedPinnedSlot(kv, "tool_guidelines", "project-value", "project", "/tmp/proj");
 
       const result = await handler({
         sessionId: "ses_e",
@@ -154,6 +157,17 @@ describe("mem::context — pinned slot injection", () => {
 
       expect(result.context).toContain("project-value");
       expect(result.context).not.toContain("global-value");
+    });
+
+    it("does not inject another project's slot", async () => {
+      await seedPinnedSlot(kv, "project_context", "only-for-proj-b", "project", "/tmp/proj-b");
+
+      const result = await handler({
+        sessionId: "ses_g",
+        project: "/tmp/proj-a",
+      });
+
+      expect(result.context).not.toContain("only-for-proj-b");
     });
   });
 
