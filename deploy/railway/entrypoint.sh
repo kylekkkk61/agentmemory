@@ -65,15 +65,6 @@ workers:
         config:
           store_method: file_based
           file_path: /data/stream_store
-  - name: iii-observability
-    config:
-      enabled: true
-      service_name: agentmemory
-      exporter: memory
-      sampling_ratio: 1.0
-      metrics_enabled: true
-      logs_enabled: true
-      logs_console_output: true
 EOF
 chown "$RUN_AS" "$III_CONFIG"
 
