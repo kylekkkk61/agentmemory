@@ -182,6 +182,25 @@ describe("mem::summarize chunking", () => {
     expect(stored?.title).toBe("Small session");
   });
 
+  it("skips an already current session summary", async () => {
+    const provider = makeProvider([summaryXml({ title: "Current session" })]);
+    const { handler } = await setupHandler({
+      sessionId: "ses_current",
+      obsCount: 10,
+      provider,
+    });
+
+    await expect(handler({ sessionId: "ses_current" })).resolves.toMatchObject({
+      success: true,
+    });
+    await expect(handler({ sessionId: "ses_current" })).resolves.toMatchObject({
+      success: true,
+      skipped: true,
+      reason: "up_to_date",
+    });
+    expect(provider.calls).toHaveLength(1);
+  });
+
   it("large session map-reduces: N chunk calls + 1 reduce call", async () => {
     process.env.SUMMARIZE_CHUNK_SIZE = "100";
     process.env.SUMMARIZE_CHUNK_CONCURRENCY = "1"; // serial keeps call ordering deterministic

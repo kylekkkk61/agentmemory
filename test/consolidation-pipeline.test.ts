@@ -9,6 +9,10 @@ vi.mock("../src/config.js", () => ({
   isConsolidationEnabled: vi.fn(() => true),
 }));
 
+vi.mock("../src/functions/slots.js", () => ({
+  isReflectEnabled: vi.fn(() => false),
+}));
+
 import { registerConsolidationPipelineFunction } from "../src/functions/consolidation-pipeline.js";
 import { isConsolidationEnabled } from "../src/config.js";
 import type { SessionSummary, Memory, SemanticMemory, ProceduralMemory } from "../src/types.js";
@@ -112,6 +116,24 @@ describe("Consolidation Pipeline", () => {
     const semantic = result.results.semantic as { skipped: boolean; reason: string };
     expect(semantic.skipped).toBe(true);
     expect(semantic.reason).toContain("fewer than 5");
+    expect(provider.summarize).not.toHaveBeenCalled();
+  });
+
+  it("skips reflection when reflect is disabled", async () => {
+    const provider = {
+      name: "test",
+      compress: vi.fn(),
+      summarize: vi.fn(),
+    };
+    registerConsolidationPipelineFunction(sdk as never, kv as never, provider as never);
+
+    const result = (await sdk.trigger("mem::consolidate-pipeline", {})) as {
+      success: boolean;
+      results: Record<string, unknown>;
+    };
+
+    expect(result.success).toBe(true);
+    expect(result.results.reflect).toBeUndefined();
     expect(provider.summarize).not.toHaveBeenCalled();
   });
 

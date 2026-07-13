@@ -260,6 +260,18 @@ export function registerSummarizeFunction(
         return { success: false, error: "no_observations" };
       }
 
+      const existingSummary = await kv.get<SessionSummary>(
+        KV.summaries,
+        sessionId,
+      );
+      if (existingSummary?.observationCount === compressed.length) {
+        logger.info("Session summary already up to date", {
+          sessionId,
+          observationCount: compressed.length,
+        });
+        return { success: true, skipped: true, reason: "up_to_date" };
+      }
+
       if (provider.name === "noop") {
         logger.info("Summarize skipped — no LLM provider configured", {
           sessionId,

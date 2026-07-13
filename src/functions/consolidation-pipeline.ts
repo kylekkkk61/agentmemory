@@ -16,6 +16,7 @@ import {
 } from "../prompts/consolidation.js";
 import { recordAudit } from "./audit.js";
 import { getConsolidationDecayDays, isConsolidationEnabled } from "../config.js";
+import { isReflectEnabled } from "./slots.js";
 import { logger } from "../logger.js";
 
 function applyDecay(
@@ -133,7 +134,7 @@ export function registerConsolidationPipelineFunction(
         }
       }
 
-      if (tier === "all" || tier === "reflect") {
+      if ((tier === "all" || tier === "reflect") && isReflectEnabled()) {
         try {
           const reflectResult = await sdk.trigger({ function_id: "mem::reflect", payload: {
             maxClusters: 10,
