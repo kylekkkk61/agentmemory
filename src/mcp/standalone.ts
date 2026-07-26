@@ -99,6 +99,7 @@ interface Validated {
   type?: string;
   concepts?: string[];
   files?: string[];
+  project?: string;
   query?: string;
   limit?: number;
   format?: string;
@@ -122,6 +123,9 @@ function validate(toolName: string, args: Record<string, unknown>): Validated {
       v.type = (args["type"] as string) || "fact";
       v.concepts = normalizeList(args["concepts"]);
       v.files = normalizeList(args["files"]);
+      if (typeof args["project"] === "string" && args["project"].trim()) {
+        v.project = args["project"].trim();
+      }
       return v;
     }
     case "memory_recall":
@@ -180,6 +184,7 @@ async function handleProxy(
           type: v.type,
           concepts: v.concepts,
           files: v.files,
+          ...(v.project !== undefined && { project: v.project }),
         }),
       });
       return textResponse(result);
@@ -258,6 +263,7 @@ async function handleLocal(
         version: 1,
         isLatest: true,
         sessionIds: [],
+        ...(v.project !== undefined && { project: v.project }),
       });
       kvInstance.persist();
       return textResponse({ saved: id });

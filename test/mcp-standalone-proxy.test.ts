@@ -75,6 +75,28 @@ describe("@agentmemory/mcp standalone — server proxy (issue #159)", () => {
     expect(body.results[0].id).toBe("m1");
   });
 
+  it("forwards project when saving memory through the standalone proxy", async () => {
+    let rememberBody: Record<string, unknown> | undefined;
+    installFetch((url, init) => {
+      if (url.endsWith("/agentmemory/livez")) return new Response("ok", { status: 200 });
+      if (url.endsWith("/agentmemory/remember")) {
+        rememberBody = JSON.parse(init?.body as string);
+        return new Response(JSON.stringify({ success: true }), { status: 201 });
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    await handleToolCall("memory_save", {
+      content: "Scoped memory",
+      project: "kaiyn-trading-bot",
+    });
+
+    expect(rememberBody).toMatchObject({
+      content: "Scoped memory",
+      project: "kaiyn-trading-bot",
+    });
+  });
+
   it("proxies memory_recall to POST /agentmemory/search and forwards format/token_budget (#507)", async () => {
     const calls: Array<{ url: string; body?: unknown }> = [];
     installFetch((url, init) => {
