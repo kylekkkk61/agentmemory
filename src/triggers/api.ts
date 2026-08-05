@@ -324,7 +324,12 @@ export function registerApiTriggers(
 
   sdk.registerFunction("api::context",
     async (
-      req: ApiRequest<{ sessionId: string; project: string; budget?: number }>,
+      req: ApiRequest<{
+        sessionId: string;
+        project: string;
+        budget?: number;
+        agentId?: string;
+      }>,
     ): Promise<Response> => {
       const body = (req.body ?? {}) as Record<string, unknown>;
       const sessionId = asNonEmptyString(body.sessionId);
@@ -342,11 +347,20 @@ export function registerApiTriggers(
           body: { error: "budget must be a positive integer" },
         };
       }
-      const payload: { sessionId: string; project: string; budget?: number } = {
+      const queryAgentId = asNonEmptyString(req.query_params?.["agentId"]);
+      const bodyAgentId = asNonEmptyString(body.agentId);
+      const payload: {
+        sessionId: string;
+        project: string;
+        budget?: number;
+        agentId?: string;
+      } = {
         sessionId,
         project,
       };
       if (budget !== undefined) payload.budget = budget;
+      const agentId = bodyAgentId ?? queryAgentId;
+      if (agentId) payload.agentId = agentId;
       const result = await sdk.trigger({ function_id: "mem::context", payload });
       return { status_code: 200, body: result };
     },
@@ -559,7 +573,12 @@ export function registerApiTriggers(
 
   sdk.registerFunction("api::session::start",
     async (
-      req: ApiRequest<{ sessionId: string; project: string; cwd: string }>,
+      req: ApiRequest<{
+        sessionId: string;
+        project: string;
+        cwd: string;
+        agentId?: string;
+      }>,
     ): Promise<Response> => {
       const body = (req.body ?? {}) as Record<string, unknown>;
       const sessionId = asNonEmptyString(body.sessionId);
@@ -595,9 +614,12 @@ export function registerApiTriggers(
       };
       await kv.set(KV.sessions, sessionId, session);
       const contextResult = await sdk.trigger<
-        { sessionId: string; project: string },
+        { sessionId: string; project: string; agentId?: string },
         { context: string }
-      >({ function_id: "mem::context", payload: { sessionId, project } });
+      >({
+        function_id: "mem::context",
+        payload: { sessionId, project, ...(agentId ? { agentId } : {}) },
+      });
       return {
         status_code: 200,
         body: { session, context: contextResult.context },

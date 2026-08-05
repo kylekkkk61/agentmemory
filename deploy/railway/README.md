@@ -130,7 +130,6 @@ See <https://railway.com/pricing> for the current rate card.
 
 - Railway volumes do not auto-snapshot. Take your own backups (above)
   or use the dashboard's manual snapshot feature.
-- The Dockerfile builds on Railway's builder on every deploy. First
-  deploy is ~2 minutes; cached layers make subsequent rebuilds quick.
-  Pin `AGENTMEMORY_VERSION` / `III_VERSION` build args in the
-  service's *Variables* tab to lock a specific release.
+- The Dockerfile builds the checked-out fork on Railway's builder on every
+  deploy. First deploy is ~2 minutes; cached layers make subsequent rebuilds
+  quick. Pin `III_VERSION` in the service's *Variables* tab if needed.
