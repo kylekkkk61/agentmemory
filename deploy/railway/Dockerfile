@@ -10,7 +10,7 @@ COPY plugin ./plugin
 COPY src ./src
 
 RUN npm pkg set overrides.iii-sdk="${III_SDK_VERSION}" \
- && npm install --no-fund --no-audit \
+ && npm install --legacy-peer-deps --no-fund --no-audit \
  && npm run build \
  && npm pack --pack-destination /tmp \
  && mv /tmp/*.tgz /tmp/agentmemory.tgz
@@ -33,7 +33,7 @@ COPY --from=iii-image /app/iii /usr/local/bin/iii
 WORKDIR /opt/agentmemory
 COPY --from=agentmemory-build /tmp/agentmemory.tgz /tmp/agentmemory.tgz
 RUN printf '{"name":"agentmemory-deploy","version":"1.0.0","private":true,"overrides":{"iii-sdk":"%s"}}\n' "${III_SDK_VERSION}" > package.json \
- && npm install /tmp/agentmemory.tgz --omit=optional --no-fund --no-audit \
+ && npm install /tmp/agentmemory.tgz --legacy-peer-deps --omit=optional --no-fund --no-audit \
  && rm /tmp/agentmemory.tgz \
  && ln -s /opt/agentmemory/node_modules/.bin/agentmemory /usr/local/bin/agentmemory
 
