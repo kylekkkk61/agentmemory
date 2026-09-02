@@ -131,6 +131,20 @@ describe("mem::observe auto-compress gate (#138)", () => {
     expect(obs.confidence).toBe(0.3);
   });
 
+  it("publishes live events without duplicating observations in stream storage", async () => {
+    const { registerObserveFunction } = await import(
+      "../src/functions/observe.js"
+    );
+    const sdk = mockSdk();
+    const kv = mockKV();
+    registerObserveFunction(sdk as never, kv as never);
+
+    await sdk.trigger("mem::observe", validPayload());
+
+    expect(sdk.triggered.filter((t) => t.id === "stream::set")).toHaveLength(0);
+    expect(sdk.triggered.filter((t) => t.id === "stream::send")).toHaveLength(2);
+  });
+
   it("AGENTMEMORY_AUTO_COMPRESS=true: fires mem::compress exactly once", async () => {
     process.env["AGENTMEMORY_AUTO_COMPRESS"] = "true";
     const { registerObserveFunction } = await import(

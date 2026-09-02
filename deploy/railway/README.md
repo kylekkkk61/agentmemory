@@ -8,9 +8,12 @@ deploy logs and copy it into your client.
 ## What you get
 
 - A public HTTPS endpoint serving the agentmemory REST API on port 3111
-- A persistent Railway Volume at `/data` for memories, BM25 index, and
-  stream backlog
+- A persistent Railway Volume at `/data` for memories and search indexes;
+  live viewer events are intentionally not duplicated to persistent storage
 - Railway healthcheck against `/agentmemory/livez`
+- When graph extraction is disabled, stale derived graph files are moved to
+  `/data/disabled-graph-state` so iii does not load them into RAM. Core
+  memories and observations are unchanged, and the files remain recoverable.
 - The HMAC bearer secret is generated on first boot inside the
   container and persisted to `/data/.hmac` (chmod 600); the operator
   copies it from the deploy logs once.

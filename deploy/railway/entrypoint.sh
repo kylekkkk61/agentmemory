@@ -21,6 +21,18 @@ RUN_AS="node:node"
 III_CONFIG="/opt/agentmemory/node_modules/@agentmemory/agentmemory/dist/iii-config.yaml"
 
 mkdir -p "$DATA_DIR"
+
+# Graph rows are derived from observations. When extraction is disabled,
+# archive stale graph state so iii does not deserialize it into RAM.
+if [ "${GRAPH_EXTRACTION_ENABLED:-false}" != "true" ]; then
+  GRAPH_ARCHIVE_DIR="$DATA_DIR/disabled-graph-state"
+  for graph_file in "$DATA_DIR"/state_store.db/mem%3Agraph*.bin; do
+    [ -e "$graph_file" ] || continue
+    mkdir -p "$GRAPH_ARCHIVE_DIR"
+    mv "$graph_file" "$GRAPH_ARCHIVE_DIR/"
+  done
+fi
+
 chown -R "$RUN_AS" "$DATA_DIR"
 
 cat > "$III_CONFIG" <<'EOF'
@@ -63,8 +75,7 @@ workers:
       adapter:
         name: kv
         config:
-          store_method: file_based
-          file_path: /data/stream_store
+          store_method: in_memory
 EOF
 chown "$RUN_AS" "$III_CONFIG"
 
