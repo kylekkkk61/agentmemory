@@ -597,6 +597,7 @@ export interface AuditEntry {
     | "lesson_save"
     | "lesson_recall"
     | "lesson_strengthen"
+    | "lesson_delete"
     | "obsidian_export"
     | "reflect"
     | "insight_search"
